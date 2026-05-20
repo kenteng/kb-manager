@@ -12,6 +12,7 @@ requires-python = ">=3.9"
 authors = [
     {name = "tengbin"},
 ]
+keywords = ["openclaw", "knowledge-base", "markdown", "sqlite", "fts5", "agent"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -19,6 +20,16 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Text Processing :: Indexing",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kenteng/kb-manager"
+Repository = "https://github.com/kenteng/kb-manager"
+Issues = "https://github.com/kenteng/kb-manager/issues"
 
 [project.scripts]
 kb = "kb_manager.cli:main"

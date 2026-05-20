@@ -5,8 +5,6 @@ index.py — 统一全文检索索引（基于 SQLite FTS5）
 """
 
 import sqlite3
-import sys
-import json
 import hashlib
 import re
 from typing import Optional, List, Dict, Tuple
@@ -130,6 +128,18 @@ def file_hash(path: Path) -> str:
     return hashlib.md5(path.read_bytes()).hexdigest()
 
 
+def _search_terms(query: str) -> List[str]:
+    return re.findall(r"[\w\u4e00-\u9fff-]+", query, flags=re.UNICODE)
+
+
+def _fts_query(query: str) -> str:
+    terms = _search_terms(query)
+    if not terms:
+        return ""
+    quoted = [f'"{term.replace(chr(34), chr(34) * 2)}"' for term in terms]
+    return " OR ".join(quoted)
+
+
 def _collect_sources(root: Path) -> List[Tuple[Path, str, str]]:
     """收集所有需要索引的文件：(文件路径, 相对路径, 类型)"""
     sources = []
@@ -165,10 +175,11 @@ def build_index(root: Path, update_only: bool = False) -> int:
     for fpath, rel_path, ftype in sources:
         mtime = fpath.stat().st_mtime
         fhash = file_hash(fpath)
+        row = conn.execute("SELECT hash FROM files WHERE path = ?", (rel_path,)).fetchone()
+        old_hash = row["hash"] if row else None
 
         if update_only:
-            row = conn.execute("SELECT hash FROM files WHERE path = ?", (rel_path,)).fetchone()
-            if row and row["hash"] == fhash:
+            if old_hash == fhash:
                 skipped += 1
                 continue
 
@@ -186,10 +197,10 @@ def build_index(root: Path, update_only: bool = False) -> int:
             "INSERT INTO kb_fts (path, type, title, tags, content) VALUES (?, ?, ?, ?, ?)",
             (rel_path, ftype, title, tags, content))
 
-        if conn.execute("SELECT 1 FROM files WHERE path = ? AND hash != ?", (rel_path, fhash)).fetchone():
-            updated += 1
-        else:
+        if old_hash is None:
             added += 1
+        else:
+            updated += 1
 
     conn.commit()
 
@@ -218,8 +229,10 @@ def search(root: Path, query: str, limit: int = 8, type_filter: Optional[str] = 
     conn = get_db(root)
     init_db(conn)
 
-    terms = query.strip().split()
-    fts_query = " OR ".join(terms) if len(terms) > 1 else query
+    fts_query = _fts_query(query)
+    if not fts_query:
+        conn.close()
+        return []
 
     try:
         if type_filter:
