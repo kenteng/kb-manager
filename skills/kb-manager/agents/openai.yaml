@@ -1,0 +1,7 @@
+interface:
+  display_name: "kb-manager"
+  short_description: "Search, ingest, and lint local knowledge bases"
+  default_prompt: "Use $kb-manager to search the project knowledge base before answering and update the index after writing knowledge."
+
+policy:
+  allow_implicit_invocation: true
