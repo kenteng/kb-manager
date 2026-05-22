@@ -1,6 +1,6 @@
 # kb-manager
 
-**OpenClaw 知识库管理 Skill** — 为 AI Agent 提供开箱即用的知识检索、自动入库和健康检查能力。
+**OpenClaw 知识库管理 Skill** — 为 AI Agent 提供知识检索、自动入库、缺口检测与健康检查能力。
 
 > 基于 SQLite FTS5 全文搜索引擎，零外部依赖，轻量、快速、可嵌入。
 
@@ -11,6 +11,7 @@ AI Agent 需要可靠的知识管理基础设施：
 - **入库**：从 URL/文件自动抓取、提炼、写入知识库，无需人工整理
 - **规范**：强制 frontmatter、标签体系、健康检查，防止知识库腐烂
 - **透明**：Agent 搜索后附上查询条件和结果，让回答可追溯
+- **主动**：Agent 心跳时自动检测知识缺口，从现有材料抽取补全，必要时批量询问用户
 
 kb-manager 就是为此而生。
 
@@ -74,6 +75,41 @@ KB_ROOT=/workspace kb lint
 ```
 
 检查项：frontmatter 完整性、标签缺失、交叉引用断裂
+
+### 缺口检测与询问
+
+心跳时自动检测知识库缺口，从现有材料抽取补全，必要时批量询问用户：
+
+```bash
+KB_ROOT=/workspace kb gap                              # 扫描所有缺口
+KB_ROOT=/workspace kb gap --stale-days 14              # 自定义过期阈值
+KB_ROOT=/workspace kb gap --output memory/.gaps-latest.json  # 导出 JSON
+```
+
+**4 种缺口类型**：
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `empty` | 有页面但正文为空（<50 字） | 新建页面忘记填写 |
+| `missing_field` | 缺少关键字段 | 客户档案缺决策链 |
+| `stale` | 超期未更新（按类型设不同阈值） | 客户档案 30 天未更新 |
+| `no_page` | 对话中提到但 kb 中无对应页面 | 新客户首次接触 |
+
+**差异化过期阈值**：
+
+| 类型 | 阈值 | 原因 |
+|------|------|------|
+| clients / projects / pitches | 30 天 | 业务活跃，需保持更新 |
+| meetings | 60 天 | 会议纪要是历史记录 |
+| tech / tools / insights | 90 天 | 技术参考文件较稳定 |
+| patterns / standards / reviews | 180 天 | 标准/模式文档基本不变 |
+
+**自动填补流程**：
+1. 心跳执行 `kb gap` 扫描
+2. 按价值评分（类型权重 × 紧急度）排序
+3. 从现有会议纪要/项目文件中抽取信息自动补全
+4. 攒满 3-5 个真实缺口后批量询问用户
+5. 收到回复后自动写入 KB → `kb update`
 
 ### 初始化知识库
 
@@ -143,6 +179,7 @@ updated: 2026-05-19
 | `kb status` | 查看索引状态 |
 | `kb lint` | 健康检查 |
 | `kb manifest` | 生成机器可读清单 |
+| `kb gap` | 检测知识库缺口 |
 | `kb ingest add-url <url>` | 从 URL 导入 |
 | `kb ingest add-file <path>` | 从本地文件导入 |
 | `kb ingest list` | 列出待入库内容 |
