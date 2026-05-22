@@ -13,6 +13,10 @@ state/
 .vscode/
 .idea/
 
+# Local issue tracking
+.local-issues/
+scripts/
+
 # OS
 .DS_Store
 Thumbs.db

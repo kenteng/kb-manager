@@ -16,6 +16,7 @@ from .ingest import (
     cmd_add_url, cmd_add_file, cmd_add_stdin,
     cmd_list, cmd_commit, cmd_remove,
 )
+from .gap import cmd_gap
 
 
 class RootAwareParser(argparse.ArgumentParser):
@@ -77,6 +78,13 @@ def main():
 
     p_manifest = sub.add_parser("manifest", help="生成机器可读清单")
     p_manifest.set_defaults(func=_cmd_manifest)
+
+    # gap — 缺口检测
+    p_gap = sub.add_parser("gap", help="检测知识库缺口并生成询问建议")
+    p_gap.add_argument("--stale-days", type=int, default=30, help="页面过期阈值天数（默认 30）")
+    p_gap.add_argument("--output", "-o", help="将缺口数据保存为 JSON 文件")
+    p_gap.add_argument("--context", help="从文件读取对话中提到的页面名列表（用于缺失页面检测）")
+    p_gap.set_defaults(func=_cmd_gap)
 
     # ingest
     p_ingest = sub.add_parser("ingest", help="多格式自动入库")
@@ -203,6 +211,11 @@ def _cmd_lint(args):
 def _cmd_manifest(args):
     root = _get_root(args)
     generate_manifest(root)
+
+
+def _cmd_gap(args):
+    root = _get_root(args)
+    cmd_gap(args, root)
 
 
 def _cmd_ingest_url(args):

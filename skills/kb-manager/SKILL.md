@@ -1,6 +1,6 @@
 # kb-manager 技能
 
-> 知识库全文检索 + 自动入库 + 健康检查
+> 知识库全文检索 + 自动入库 + 健康检查 + **缺口检测与询问**
 
 ## 触发条件
 
@@ -8,6 +8,7 @@
 - 写入知识后需要更新索引
 - 知识库健康检查
 - 从 URL 导入文章到知识库
+- **主动检测知识库缺口**（心跳/事件/手动触发）
 
 ## 前置条件
 
@@ -89,6 +90,42 @@ KB_ROOT=<workspace> kb status
 ```bash
 KB_ROOT=<workspace> kb manifest
 ```
+
+### 缺口检测与询问
+
+**扫描缺口**：
+```bash
+KB_ROOT=<workspace> kb gap                          # 扫描所有缺口
+KB_ROOT=<workspace> kb gap --stale-days 14          # 自定义过期阈值（天）
+KB_ROOT=<workspace> kb gap --output gaps.json       # 保存为 JSON
+KB_ROOT=<workspace> kb gap --context mentioned.txt  # 从文件读取对话中提到的页面
+```
+
+**缺口类型**：
+- `empty` — 有页面但正文为空或极少（<50 字）
+- `missing_field` — 缺少关键字段（根据页面类型定义）
+- `stale` — 超过 N 天未更新
+- `no_page` — 对话中提到但 kb 中无对应页面
+
+**询问策略**（Agent 端实现）：
+1. 心跳时自动执行 `kb gap --output gaps.json`
+2. 按 `_score`（类型权重 × 紧急度）排序
+3. 攒满 3-5 个高价值缺口后，批量向用户发起询问
+4. 使用结构化模板提问，降低用户回答成本：
+   ```
+   📋 知识库缺口报告
+   
+   📭 空页面（2 项）
+   • 客户 A
+     → 正文仅 12 字，需要补充内容
+     💬 建议问：「能否补充客户 A 的详细信息？」
+   
+   🔍 缺少关键字段（1 项）
+   • 项目 B
+     → 缺少关键字段：决策链、竞品
+     💬 建议问：「项目 B 的决策链、竞品是什么？」
+   ```
+5. 用户回复后自动写入对应 KB 页面并执行 `kb update`
 
 ## 知识库目录结构
 
